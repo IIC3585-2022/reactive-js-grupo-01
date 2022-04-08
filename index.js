@@ -69,14 +69,14 @@ gameMap.style.bottom = `${MAP_BOTTOM}px`
 gameMap.style.left = `${MAP_LEFT}px`
 gameMap.style.width = `${MAP_WIDTH}px`
 gameMap.style.height = `${MAP_WIDTH}px`
-gameMap.style.backgroundImage = 'url("calle.png")'
+gameMap.style.backgroundImage = 'url("images/calle.png")'
 gameMap.style.backgroundRepeat = 'no-repeat'
 gameMap.style.backgroundSize = `${MAP_WIDTH}px ${MAP_WIDTH}px`
 document.body.appendChild(gameMap)
 
 const showPlayer1 = (x, y) => {
     const player = document.createElement('img');
-    player.src = 'personaje1.png'
+    player.src = 'images/personaje1.png'
     player.style.position='absolute'
     player.style.left = `${x}px`
     player.style.bottom = `${y}px`
@@ -88,7 +88,7 @@ const showPlayer1 = (x, y) => {
 
 const showPlayer2 = (x, y) => {
     const player = document.createElement('img');
-    player.src = 'personaje2.png'
+    player.src = 'images/personaje2.png'
     player.style.position='absolute'
     player.style.left = `${x}px`
     player.style.bottom = `${y}px`
@@ -101,7 +101,7 @@ const showPlayer2 = (x, y) => {
 const showCars = (cars) => {
     cars.forEach((car) => {
         const carDom = document.createElement('img');
-        carDom.src = 'car.png'
+        carDom.src = 'images/car.png'
         carDom.style.position='absolute'
         carDom.style.left = `${car.x}px`
         carDom.style.bottom = `${car.y}px`
@@ -221,7 +221,7 @@ const detectCarColission = (cars, {X1, Y1}, {X2, Y2}) => {
 
 const isCarCollision = (car, {X1, Y1}, {X2, Y2}) => {
     const distanceX = 35
-    const distanceY = 35
+    const distanceY = 50
     const firstPlayerCollision = distanceX > Math.abs(X1 - car.x) && Math.abs(car.y - Y1) < distanceY
     const secondPlayerCollision = distanceX > Math.abs(X2 - car.x) && Math.abs(car.y - Y2) < distanceY
     return firstPlayerCollision || secondPlayerCollision
