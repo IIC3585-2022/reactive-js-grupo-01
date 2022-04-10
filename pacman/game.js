@@ -7,21 +7,33 @@ MAP =
 `
 XXXXXXXXXXXXX
 X...........X
-XX.XXX.X.XX.X
 X...........X
-XXX.XXXX.XXXX
 X...........X
-X.XXXX.XXXX.X
+X.X.X.X.X.X.X
+X...........X
+X.X.X.X.X.X.X
 X...........X
 XXXXXXXXXXXXX
 `
 
 MAP_ROWS = 9;
 MAP_COLS = 13;
+/*
+MAP = ""
 
+for(let i=0; i<MAP_ROWS; i++) {
+    for(let j=0; j<MAP_COLS; j++) {
+        if(Math.random() < 0.5) {
+            MAP += "X";
+            
+        } else {
+            MAP += "."
+        }
+    }
+    MAP += "\n";
+}
+*/
 // Inicio del jugador
-START_X = 1;
-START_Y = 1;
 
 CANVAS_WIDTH = 600;
 CANVAS_HEIGHT = 600;
@@ -30,7 +42,8 @@ OBSTACLE_CHAR = "X";
 OBSTACLE_COLOR = "#000000";
 
 SMALL_DOT_CHAR = "*";
-SMALL_DOT_COLOR = "#ffff00";
+//SMALL_DOT_COLOR = "#ffff00";
+SMALL_DOT_COLOR = "#ff0000";
 
 NOTHING_CHAR = ".";
 NOTHING_COLOR = "#ffffff";
@@ -40,23 +53,33 @@ READY_COLOR = "#ff0000";
 // 2 jugadores
 PLAYERS = [
   {
-    UP: 38,    // arrow up
-    DOWN: 40,  // arrow down
-    LEFT: 37,  // arrow left
-    RIGHT: 39, // arrow right
-    COLOR: "#ffff00",
-    START_X: 1,
-    START_Y: 1,
-  },
-  {
     UP: 87,    // W
     DOWN: 83,  // S
     LEFT: 65,  // A
     RIGHT: 68, // D
     COLOR: "#00ff00",
     START_X: 1,
-    START_Y: 3,
+    START_Y: 1,
   },
+  {
+    UP: 38,    // arrow up
+    DOWN: 40,  // arrow down
+    LEFT: 37,  // arrow left
+    RIGHT: 39, // arrow right
+    COLOR: "#ffff00",
+    START_X: 7,
+    START_Y: 1,
+  },
+/*  {
+    UP: 73,    // I
+    DOWN: 75,  // K
+    LEFT: 74,  // J
+    RIGHT: 76, // L
+    COLOR: "#0000ff",
+    START_X: 5,
+    START_Y: 1,
+  },
+  */
 ]
 
 DIRECTIONS = {
@@ -93,10 +116,10 @@ const ctx=c.getContext("2d");
 
 const map = createMap(MAP);
 
-const smallDots = new rxjs.BehaviorSubject(createSmallDots(map));
 
 /*********** Parseo de inputs **********/
 
+const smallDots = new rxjs.BehaviorSubject(createSmallDots(map));
 
 function createMap(mapstring) {
   let rows = mapstring.trim().split("\n");
@@ -135,13 +158,14 @@ scores.forEach((score, i) => score.subscribe((s) => console.log(`score player ${
 const gameReady = new rxjs.BehaviorSubject(true);
 const gameStarted = new rxjs.BehaviorSubject(false);
 
-gameReady.subscribe((s) => {
+function prepareGame(s) {
   if(s == true) {
     setTimeout(() => gameStarted.next(true), PACMAN_INTRO_TIME);
     const startSound = document.getElementById("introSound");
     startSound.play();
   }
-})
+}
+gameReady.subscribe(prepareGame)
 
 const keyPress = new rxjs.fromEvent(document, "keydown")
   .pipe(
@@ -169,6 +193,9 @@ function movementController(keyCode) {
         break;
     }
   });
+}
+
+function restartController(keyCode) {
   switch(keyCode) {
     case R:
       restartGame();
@@ -177,6 +204,7 @@ function movementController(keyCode) {
 }
 
 keyPress.subscribe(movementController);
+keyPress.subscribe(restartController);
 
 const updateTimer = new rxjs.timer(0, GAME_UPDATE_TIME);
 
@@ -245,6 +273,7 @@ updateTimer.subscribe(updateController);
 players.forEach((player) => player.subscribe(collisionController));
 
 function restartGame() {
+  console.log("restarting...");
 
   var sounds = document.getElementsByTagName('audio');
   for(i=0; i<sounds.length; i++) sounds[i].pause();
@@ -303,6 +332,8 @@ smallDots.subscribe(endGame);
 gameEnded.subscribe(() => drawCanvas(ctx, map));
 
 gameStarted.subscribe(() => drawCanvas(ctx, map));
+
+scores.forEach((score) => score.subscribe(() => drawCanvas(ctx, map)));
 
 /******** Funciones para dibujar *******/
 
@@ -448,16 +479,19 @@ function drawFinalScreen(ctx, scores) {
   ctx.textAlign = "center";
   ctx.fillText("Game Finished", CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
   scores.forEach((score, i) => {
+    ctx.fillStyle = PLAYERS[i].COLOR;
     ctx.fillText(`Player ${i}' final score: ${score}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30 * (i + 1));
   })
 }
 
+function playEatSound() {
+  if(gameReady.getValue() && gameStarted.getValue()){
+    const audio = document.getElementById('pacmanSound');
+    const newAudio = audio.cloneNode(true);
+    newAudio.play()
+  }
+}
+
 smallDots.pipe(
    rxjs.operators.throttleTime(PACMAN_SOUND_DURATION)
-).subscribe(() => {
-    if(gameReady.getValue() && gameStarted.getValue()){
-      const audio = document.getElementById('pacmanSound');
-      const newAudio = audio.cloneNode(true);
-      newAudio.play()
-    }
-  });
+).subscribe(playEatSound);
