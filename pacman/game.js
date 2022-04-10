@@ -7,7 +7,7 @@ MAP =
 `
 XXXXXXXXXXXXX
 X...........X
-X...........X
+X.X.X.X.X.X.X
 X...........X
 X.X.X.X.X.X.X
 X...........X
