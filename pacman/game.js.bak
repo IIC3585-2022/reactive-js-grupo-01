@@ -1,0 +1,290 @@
+/**
+ * CONSTANTES
+ */
+
+// Representacion string del mapa. cada X es un obstáculo, . es un punto comestible
+// y O es un punto para invencibilidad.
+MAP =
+`
+XXXXXXXXXXXXX
+X*..*O******X
+XXXXXXXX****X
+X***********X
+XXXXXXXXXXXXX
+`
+
+MAP_ROWS = 5;
+MAP_COLS = 13;
+
+// Inicio del jugador
+START_X = 1;
+START_Y = 1;
+
+CANVAS_WIDTH = 600;
+CANVAS_HEIGHT = 600;
+
+OBSTACLE_CHAR = "X";
+OBSTACLE_COLOR = "#000000";
+
+SMALL_DOT_CHAR = "*";
+SMALL_DOT_COLOR = "#ffff00";
+
+BIG_DOT_CHAR = "O";
+BIG_DOT_COLOR = "#ff0000";
+
+NOTHING_CHAR = ".";
+NOTHING_COLOR = "#ffffff";
+
+PLAYER_COLOR = "#ffff00";
+
+TIMER_TIME = 500;
+ANIMATION_TIME = 50;
+TIME_DELTA = 1;
+
+SMALL_DOT_SCORE = 10;
+
+// keycodes de teclas
+UP = 38;
+DOWN = 40;
+LEFT = 37;
+RIGHT = 39;
+NONE = 0;
+
+/**
+ * CODIGO
+ */
+
+/********** eventos ********/
+
+const c=document.getElementById("myCanvas");
+c.width = CANVAS_WIDTH;
+c.height = CANVAS_HEIGHT;
+const ctx=c.getContext("2d");
+
+const map = new rxjs.BehaviorSubject(createMap(MAP));
+
+const time = new rxjs.BehaviorSubject(1);
+
+const score = new rxjs.BehaviorSubject(0);
+
+score.subscribe((s) => console.log(`New score: ${s}`));
+
+const playerPos = new rxjs.BehaviorSubject({
+  X: START_X,
+  Y: START_Y,
+  speedX: 0,
+  speedY: 0,
+  direction: RIGHT,
+});
+
+playerPos.subscribe((pos) => {
+  const { X, Y, direction } = pos;
+  drawCanvas(ctx, map, X, Y, direction, time.getValue());
+})
+
+const keydowns = new rxjs.fromEvent(document, "keydown");
+
+keydowns.pipe(
+  rxjs.operators.distinctUntilKeyChanged("keyCode")
+).subscribe((e) => {
+    const { X, Y, time } = playerPos.getValue();
+    let speedX = 0, speedY = 0, newDirection;
+    if(!(e.keyCode == UP || e.keyCode == DOWN || e.keyCode == LEFT || e.keyCode == RIGHT)) {
+      return;
+    }
+    if(e.keyCode == UP)
+    {
+      speedY = -1
+      newDirection = UP;
+    }
+    else if(e.keyCode == DOWN)
+    {
+      speedY = 1
+      newDirection = DOWN;
+    }
+    else if(e.keyCode == LEFT)
+    {
+      speedX = -1
+      newDirection = LEFT;
+    }
+    else if(e.keyCode == RIGHT)
+    {
+      speedX = 1
+      newDirection = RIGHT;
+    }
+    playerPos.next({
+      X,
+      Y,
+      speedX,
+      speedY,
+      direction: newDirection
+    });
+});
+
+
+const timer = new rxjs.timer(0, TIMER_TIME);
+
+timer.subscribe(() => {
+  const { X, Y, speedX, speedY, direction } = playerPos.getValue();
+  let newX = X + speedX;
+  let newY = Y + speedY;
+  let newSpeedX = speedX;
+  let newSpeedY = speedY;
+
+  const cur_map = map.getValue();
+
+  if(cur_map[newX][newY] == OBSTACLE_CHAR)
+  {
+    newX = X;
+    newY = Y;
+    newSpeedX = 0;
+    newSpeedY = 0;
+
+    // aca se puede hacer un emit de evento de colision
+  }
+
+  else if(cur_map[newX][newY] == SMALL_DOT_CHAR)
+  {
+    // emitir evento de consumir
+    cur_map[newX][newY] = NOTHING_CHAR;
+    map.next(cur_map);
+    score.next(score.getValue() + SMALL_DOT_SCORE);
+
+  }
+  else if(cur_map[newX][newY] == BIG_DOT_CHAR)
+  {
+    // consumir y emitir evento
+  }
+
+  playerPos.next({
+    X: newX,
+    Y: newY,
+    speedX: newSpeedX,
+    speedY: newSpeedY,
+    direction: direction,
+  });
+});
+
+time.subscribe((timeval) => {
+  const { X, Y, direction } = playerPos.getValue();
+  drawCanvas(ctx, map, X, Y, direction, timeval);
+})
+
+const animationTimer = rxjs.timer(0, ANIMATION_TIME);
+
+animationTimer.subscribe(() => {
+  time.next(time.getValue() + TIME_DELTA);
+});
+
+/**
+que cada x ms se mande un llamado a moverse en la ultima direccion
+
+al hacer keypress, que se haga un override del evento anterior y se mueva en la direccion de la tecla apretada
+*/
+
+
+/******** Funciones para dibujar *******/
+
+function createMap(mapstring) {
+  let rows = mapstring.trim().split("\n");
+  return rows.map(row => row.split(""));
+}
+
+function drawCanvas(ctx, map, player_i, player_j, direction, time) {
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  drawMap(ctx, map.getValue());
+  drawPlayer(ctx, player_i, player_j, MAP_ROWS, MAP_COLS, CANVAS_WIDTH, CANVAS_HEIGHT, direction, time);
+}
+
+function drawMap(ctx, map) {
+  map.forEach((row, i) => {
+    row.forEach((char, j) => {
+      switch(char) {
+        case OBSTACLE_CHAR:
+          drawObstacle(ctx, i, j, MAP_ROWS, MAP_COLS, CANVAS_WIDTH, CANVAS_HEIGHT);
+          break;
+        case SMALL_DOT_CHAR:
+          drawSmallDot(ctx, i, j, MAP_ROWS, MAP_COLS, CANVAS_WIDTH, CANVAS_HEIGHT);
+          break;
+        case BIG_DOT_CHAR:
+          drawBigDot(ctx, i, j, MAP_ROWS, MAP_COLS, CANVAS_WIDTH, CANVAS_HEIGHT);
+          break;
+        case NOTHING_CHAR:
+          drawNothing(ctx, i, j, MAP_ROWS, MAP_COLS, CANVAS_WIDTH, CANVAS_HEIGHT);
+          break;
+      }
+    });
+  });
+  //i+= 0.0001;
+}
+
+function drawObstacle(ctx, i, j, rows, cols, canvas_width, canvas_height) {
+  const tile_width = Math.ceil(canvas_width / rows);
+  const tile_height = Math.ceil(canvas_height / cols);
+
+  const tile_x = Math.floor(i * tile_width);
+  const tile_y = Math.floor(j * tile_height);
+
+  ctx.fillStyle = OBSTACLE_COLOR;
+  ctx.fillRect(tile_x, tile_y, tile_width, tile_height);
+}
+
+function drawSmallDot(ctx, i, j, rows, cols, canvas_width, canvas_height) {
+  const tile_width = Math.ceil(canvas_width / rows);
+  const tile_height = Math.ceil(canvas_height / cols);
+
+  const tile_x = Math.floor(i * tile_width);
+  const tile_y = Math.floor(j * tile_height);
+
+  ctx.beginPath()
+  ctx.fillStyle = SMALL_DOT_COLOR;
+  ctx.ellipse(tile_x + tile_width / 2, tile_y + tile_height / 2, tile_width / 10, tile_height / 10, 0, 0, 2 * Math.PI);
+  ctx.fill()
+}
+
+function drawBigDot(ctx, i, j, rows, cols, canvas_width, canvas_height) {
+  const tile_width = Math.ceil(canvas_width / rows);
+  const tile_height = Math.ceil(canvas_height / cols);
+
+  const tile_x = Math.floor(i * tile_width);
+  const tile_y = Math.floor(j * tile_height);
+
+  ctx.fillStyle = BIG_DOT_COLOR;
+  ctx.fillRect(tile_x, tile_y, tile_width, tile_height);
+}
+
+function drawNothing(ctx, i, j, rows, cols, canvas_width, canvas_height) {
+  // Intencionalmente en blanco
+}
+
+function drawPlayer(ctx, i, j, rows, cols, canvas_width, canvas_height, direction, time) {
+  const tile_width = Math.ceil(canvas_width / rows);
+  const tile_height = Math.ceil(canvas_height / cols);
+
+  const tile_x = Math.floor(i * tile_width);
+  const tile_y = Math.floor(j * tile_height);
+
+  let startAngle, endAngle;
+
+  if(direction == UP) {
+    startAngle = (0.1 * Math.cos(time) - 0.2) * Math.PI;
+    endAngle = (1 - 0.1 * Math.cos(time) + 0.2) * Math.PI;
+  } else if(direction == DOWN) {
+    startAngle = (0.1 * Math.cos(time) - 0.2 + 1) * Math.PI;
+    endAngle = (1 - 0.1 * Math.cos(time) + 0.2 + 1) * Math.PI;
+  } else if(direction == LEFT) {
+    startAngle = (0.1 * Math.cos(time) - 0.2 + 3/2) * Math.PI;
+    endAngle = (1 - 0.1 * Math.cos(time) + 0.2 + 3/2) * Math.PI;
+  } else if(direction == RIGHT) {
+    startAngle = (0.1 * Math.cos(time) - 0.2 + 1/2) * Math.PI;
+    endAngle = (1 - 0.1 * Math.cos(time) + 0.2 + 1/2) * Math.PI;
+  }
+
+  ctx.beginPath()
+  ctx.fillStyle = PLAYER_COLOR;
+  ctx.arc(tile_x + tile_width / 2, tile_y + tile_height / 2, tile_height / 2, startAngle, endAngle);
+  ctx.lineTo(tile_x + tile_width / 2, tile_y + tile_height / 2);
+  ctx.fill()
+}
+
+

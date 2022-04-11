@@ -1,0 +1,9 @@
+lo que quiero es poner un evento que se emita cada 10 ms que haga moverse al jugador. 
+
+cuando hay un obstaculo, el evento se cambia por nada.
+
+cuando se cambia la direccion, el evento se cambia nuevamente.
+
+
+
+se necesita un subject que guarde la posicion actual del jugador.
